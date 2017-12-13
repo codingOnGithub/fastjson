@@ -60,12 +60,14 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.PropertyNamingStrategy;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.alibaba.fastjson.annotation.JSONType;
+import com.alibaba.fastjson.parser.DefaultJSONParser;
 import com.alibaba.fastjson.parser.Feature;
 import com.alibaba.fastjson.parser.JSONScanner;
 import com.alibaba.fastjson.parser.ParserConfig;
 import com.alibaba.fastjson.parser.deserializer.JavaBeanDeserializer;
 import com.alibaba.fastjson.parser.deserializer.ObjectDeserializer;
 import com.alibaba.fastjson.serializer.CalendarCodec;
+import com.alibaba.fastjson.serializer.JavaBeanSerializer;
 import com.alibaba.fastjson.serializer.SerializeBeanInfo;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 
@@ -856,6 +858,17 @@ public class TypeUtils{
             if(argType instanceof WildcardType){
                 return (T) cast(obj, rawTye, mapping);
             }
+            if (rawTye instanceof Class) {
+                if (mapping == null) {
+                    mapping = ParserConfig.global;
+                }
+                ObjectDeserializer deserializer = mapping.getDeserializer(rawTye);
+                if (deserializer != null) {
+                    String str = JSON.toJSONString(obj);
+                    DefaultJSONParser parser = new DefaultJSONParser(str, mapping);
+                    return (T) deserializer.deserialze(parser, type, null);
+                }
+            }
         }
 
         if (rawTye == Map.Entry.class && obj instanceof Map && ((Map) obj).size() == 1) {
@@ -1330,9 +1343,9 @@ public class TypeUtils{
                 continue;
             }
             /**
-             *  如果在属性或者方法上存在JSONField注解，不以类上的propertyNamingStrategy设置为准，此字段的JSONField为准。
+             *  如果在属性或者方法上存在JSONField注解，并且定制了name属性，不以类上的propertyNamingStrategy设置为准，以此字段的JSONField的name定制为准。
              */
-            Boolean fieldAnnotationExists = false;
+            Boolean fieldAnnotationAndNameExists = false;
             JSONField annotation = method.getAnnotation(JSONField.class);
             if(annotation == null){
                 annotation = getSuperMethodAnnotation(clazz, method);
@@ -1390,7 +1403,6 @@ public class TypeUtils{
                 }
             }
             if(annotation != null){
-                fieldAnnotationExists = true;
                 if(!annotation.serialize()){
                     continue;
                 }
@@ -1398,6 +1410,7 @@ public class TypeUtils{
                 serialzeFeatures = SerializerFeature.of(annotation.serialzeFeatures());
                 parserFeatures = Feature.of(annotation.parseFeatures());
                 if(annotation.name().length() != 0){
+                    fieldAnnotationAndNameExists = true;
                     String propertyName = annotation.name();
                     if(aliasMap != null){
                         propertyName = aliasMap.get(propertyName);
@@ -1461,7 +1474,6 @@ public class TypeUtils{
                 if(field != null){
                     fieldAnnotation = field.getAnnotation(JSONField.class);
                     if(fieldAnnotation != null){
-                        fieldAnnotationExists = true;
                         if(!fieldAnnotation.serialize()){
                             continue;
                         }
@@ -1469,6 +1481,7 @@ public class TypeUtils{
                         serialzeFeatures = SerializerFeature.of(fieldAnnotation.serialzeFeatures());
                         parserFeatures = Feature.of(fieldAnnotation.parseFeatures());
                         if(fieldAnnotation.name().length() != 0){
+                            fieldAnnotationAndNameExists = true;
                             propertyName = fieldAnnotation.name();
                             if(aliasMap != null){
                                 propertyName = aliasMap.get(propertyName);
@@ -1488,7 +1501,7 @@ public class TypeUtils{
                         continue;
                     }
                 }
-                if(propertyNamingStrategy != null && !fieldAnnotationExists){
+                if(propertyNamingStrategy != null && !fieldAnnotationAndNameExists){
                     propertyName = propertyNamingStrategy.translate(propertyName);
                 }
                 FieldInfo fieldInfo = new FieldInfo(propertyName, method, field, clazz, null, ordinal, serialzeFeatures, parserFeatures,

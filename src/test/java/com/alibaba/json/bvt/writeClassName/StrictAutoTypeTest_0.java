@@ -3,19 +3,10 @@ package com.alibaba.json.bvt.writeClassName;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.parser.Feature;
+import com.alibaba.fastjson.parser.ParserConfig;
 import junit.framework.TestCase;
 
 public class StrictAutoTypeTest_0 extends TestCase {
-    private int features;
-
-    protected void setUp() throws Exception {
-        this.features = JSON.DEFAULT_PARSER_FEATURE;
-    }
-
-    protected void tearDown() throws Exception {
-        JSON.DEFAULT_PARSER_FEATURE = features;
-    }
-
     public void test_0() throws Exception {
         JSON.parseObject("{\"@type\":\"com.alibaba.fastjson.JSONObject\"}", Object.class);
         JSON.parseObject("{\"@type\":\"com.alibaba.fastjson.JSONObject\"}", Object.class, Feature.SupportAutoType);
@@ -47,13 +38,8 @@ public class StrictAutoTypeTest_0 extends TestCase {
     }
 
     public void test_3() throws Exception {
-        try {
-            JSON.DEFAULT_PARSER_FEATURE |= Feature.SupportAutoType.mask;
-            JSON.parseObject("{\"val\":{\"@type\":\"com.alibaba.json.bvt.writeClassName.StrictAutoTypeTest_0$V3\"}}");
-        } catch (JSONException ex) {
-        } finally {
-            JSON.DEFAULT_PARSER_FEATURE &= ~Feature.SupportAutoType.mask;
-        }
+        int features = JSON.DEFAULT_PARSER_FEATURE | Feature.SupportAutoType.mask;
+        JSON.parse("{\"val\":{\"@type\":\"com.alibaba.json.bvt.writeClassName.StrictAutoTypeTest_0$V3\"}}", features);
     }
 
     public static class VO {
